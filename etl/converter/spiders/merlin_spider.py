@@ -18,7 +18,7 @@ class MerlinSpider(CrawlSpider, LomBase):
     name = "merlin_spider"
     url = "https://merlin.nibis.de/index.php"  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = "Merlin"  # name as shown in the search ui
-    version = "0.1"  # the version of your crawler, used to identify if a reimport is necessary
+    version = "0.2"  # the version of your crawler, used to identify if a reimport is necessary
     apiUrl = "https://merlin.nibis.de/index.php?action=resultXml&start=%start&anzahl=%anzahl&query[stichwort]=*"  # * regular expression, to represent all possible values.
 
     limit = 100
@@ -70,6 +70,11 @@ class MerlinSpider(CrawlSpider, LomBase):
                     if not("kreis_id" in element_dict
                            and element_dict["kreis_id"] is not None
                            and len(element_dict["kreis_id"]) > 0):
+                        continue
+
+                    # If the content is private, skip it for now!
+                    # TODO: remove this when the  private is more clear!!!
+                    if not(len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100"):
                         continue
 
                     # TODO: It's probably a pointless attribute.
@@ -247,15 +252,16 @@ class MerlinSpider(CrawlSpider, LomBase):
 
         permissions.replace_value("public", False)
         permissions.add_value("autoCreateGroups", True)
+        permissions.add_value("autoCreateMediacenters", True)
 
         # If there is only one element and is the Kreis code 100, then it is public content.
         if len(element_dict["kreis_id"]) == 1 and str(element_dict["kreis_id"][0]) == "merlin_spider_100":
             permissions.add_value("groups", ["LowerSaxony-public"])
         else:
-            # Self-explained. 1 media center per Kreis-code in this case.
-            permissions.add_value("autoCreateMediacenters", True)
             permissions.add_value("groups", ["LowerSaxony-private"])
-            permissions.add_value('mediacenters', element_dict["kreis_id"])
+
+        # Self-explained. 1 media center per Kreis-code in this case.
+        permissions.add_value('mediacenters', element_dict["kreis_id"])
 
         return permissions
 
