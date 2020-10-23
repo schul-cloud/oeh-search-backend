@@ -34,18 +34,20 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
         elements = json.loads(response.body_as_unicode())
 
         # grouped_elements = self.group_elements_by_medium_id(elements)
-        grouped_elements = self.group_elements_by_sammlung(elements)
+        # grouped_elements = self.group_elements_by_sammlung(elements)
+        grouped_elements = elements  # no grouping
 
         for i, element in enumerate(grouped_elements):
             copyResponse = response.copy()
 
+            prepared_element = self.prepare_element(element)
+
             # Passing the dictionary for easier access to attributes.
-            copyResponse.meta["item"] = element
+            copyResponse.meta["item"] = prepared_element
 
             # In case JSON string representation is preferred:
             json_str = json.dumps(element, indent=4, sort_keys=True, ensure_ascii=False)
             copyResponse._set_body(json_str)
-            print(json_str)
 
             if self.hasChanged(copyResponse):
                 yield self.handleEntry(copyResponse)
@@ -122,9 +124,6 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             #     collections_einzeltitel[collection_einzeltitel].append(elements[idx]["serientitel"])
             # else:
             #     collections_einzeltitel[collection_einzeltitel].append(None)
-        print("hi")
-
-
 
 
     def get_or_default(self, element, attribute, default_value=""):
@@ -242,3 +241,11 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
             permissions.add_value('groups', ['Thuringia-public'])
 
         return permissions
+
+
+    def prepare_element(self, element_dict):
+
+        # TODO: Consider using also the einzeluntertitel.
+        element_dict["titel"] = element_dict["einzeltitel"]
+
+        return element_dict
