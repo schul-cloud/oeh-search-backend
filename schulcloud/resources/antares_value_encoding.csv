@@ -1,0 +1,39 @@
+alphanumeric representation,numeric encodings
+biologie,80
+chemie,100
+deutsch,120
+englisch,20001
+französisch,20002
+geographie,220
+geschichte,240
+griechisch,20003
+informatik,320
+italienisch,20004
+kunst,60
+latein,20005
+mathematik,380
+musik,420
+naturwissenschaften,320 380 460 080 100
+philosophie,450
+physik,460
+religion,520
+sachunterricht,28010
+spanisch,20007
+sport,600
+technik,50005
+wirtschaft,700
+politik/gemeinschaftskunde,480
+audio,29
+video,49 55
+bild,19
+dokument,79
+internet-seite,58
+programm,69
+scorm,55
+vorschulbereich,E
+primarstufe,A1 A2 A3 A4
+sekundarstufe 1,A5 A6 A7 A8 A9 A10
+sekundarstufe 2,A11 A12 A13
+hochschulbereich,Q
+formale erwachsenenbildung,Q
+weiterbildung,T

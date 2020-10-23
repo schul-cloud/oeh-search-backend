@@ -5,3 +5,6 @@ __pycache__/
 nohups/
 nohup.out
 out
+antares_state_kreis_harvestable_list.csv
+.venv*/
+schulcloud/users_groups/*
