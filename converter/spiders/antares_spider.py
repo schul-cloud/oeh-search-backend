@@ -9,6 +9,7 @@ import datetime
 
 from converter.constants import Constants
 from converter.items import *
+from converter.pipelines import ProcessThumbnailPipeline
 from converter.spiders import get_project_root
 from converter.spiders.lom_base import LomBase
 
@@ -28,17 +29,20 @@ class AntaresSpider(CrawlSpider, LomBase):
     name = "antares_spider"
     url = "https://www.antares.net/"  # the url which will be linked as the primary link to your source (should be the main url of your site)
     friendlyName = "Antares"  # name as shown in the search ui
-    version = "0.1"  # the version of your crawler, used to identify if a reimport is necessary
+    version = "1.0"  # the version of your crawler, used to identify if a reimport is necessary
     apiUrl = "https://arix.datenbank-bildungsmedien.net/%state/%county"
     dataForm = "xmlstatement=<harvest start='%start' count='%count' mime='text/html' />"
 
     limit = 100
 
-    execution_per_state_county_list = []  # [{"state": "NDS", "county": "NLQ", ..., "start": "0"})]
+    execution_per_state_county_list = []  # [{"state": "X", "county": "Y", ..., "start": "0"})]
     state_county_counter = 0
 
     antares_code_to_value_mapping = None
     antares_state_counties = None
+
+    id_to_prepared_dict = {}
+    thumbnail_cache = {}
 
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
@@ -105,19 +109,19 @@ class AntaresSpider(CrawlSpider, LomBase):
         root = etree.XML(response.body)
         tree = etree.ElementTree(root)
 
+        # Convert items to dictionaries, whilst also preparing their values.
         elements = tree.xpath("/result/*")
         if len(elements) > 0:
             now = datetime.datetime.now()
 
             for element in elements:
-                copyResponse = response.copy()
+                prepared_dict = {"id": "- Not defined yet! -"}
                 element_xml_str = etree.tostring(element, pretty_print=True, encoding="unicode")
-                element_dict = None
                 try:
-                    element_dict = xmltodict.parse(element_xml_str)
+                    prepared_dict = xmltodict.parse(element_xml_str)
 
                     # Preparing the values here helps for all following logic across the methods.
-                    prepared_dict = self.prepare_element(element_dict,
+                    prepared_dict = self.prepare_element(prepared_dict,
                                                          antares_code_to_value_mapping=self.antares_code_to_value_mapping)
 
                     # If license has expired, skip it!
@@ -127,23 +131,33 @@ class AntaresSpider(CrawlSpider, LomBase):
                             logging.info("Item's license has already expired. Skipping!")
                             continue
                         else:
-                            logging.info("Item's license is in the future!")  # TODO: comment line out.
+                            logging.debug("Item's license is valid!")
 
-                    # Passing the dictionary for easier access to attributes.
-                    copyResponse.meta["item"] = prepared_dict
+                    prepared_dict["element_xml_str"] = element_xml_str
+
+                    copy_response = response.copy()
 
                     # In case XML string representation is preferred:
-                    copyResponse._set_body(element_xml_str)
+                    copy_response._set_body(element_xml_str)
 
-                    if self.hasChanged(copyResponse):
-                        # yield self.handleEntry(copyResponse)
-                        yield self.handleEntry(copyResponse)
+                    # If the element has been met in a former state/county we should already have the thumbnail.
+                    if "prefetched_thumbnail" not in prepared_dict:
+                        obtained_thumbnail = self._request_thumbnail(prepared_dict, copy_response)
+                        prepared_dict["prefetched_thumbnail"] = obtained_thumbnail["thumbnail"]
+                        self.thumbnail_cache[prepared_dict["mmdatei"]] = prepared_dict["prefetched_thumbnail"]
 
-                    # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
-                    LomBase.parse(self, copyResponse)
+                    self.id_to_prepared_dict[prepared_dict["id"]] = prepared_dict
+
+                    # Passing the dictionary for easier access to attributes.
+                    copy_response.meta["item"] = prepared_dict
+
+                    if self.hasChanged(copy_response):
+                        yield self.handleEntry(copy_response)
+
+                    # Has to be called for every individual instance that needs to be saved to the database.
+                    LomBase.parse(self, copy_response)
                 except Exception as e:
-                    logging.info("Issues with the element: " + str(
-                        element_dict["id_local"]) if "id_local" in element_dict else "")
+                    logging.info("Issues with the element: " + (str(prepared_dict["id"]) if "id" in prepared_dict else ""))
                     logging.info(e)
 
         # If "more" in response, continue paginating.
@@ -172,7 +186,6 @@ class AntaresSpider(CrawlSpider, LomBase):
             encoding='utf-8')
         )
 
-
     def prepare_element(self, element_dict, antares_code_to_value_mapping):
         prepared_dict = dict()
 
@@ -199,6 +212,30 @@ class AntaresSpider(CrawlSpider, LomBase):
         # Fake URL, to make sure that the nodes get different IDs and to remind ourselves that the final URL is
         #   generated at the SchulCloud side.
         prepared_dict["direct_url"] = "URL_dynamically_generated_at_client_side/" + prepared_dict["id"]
+
+        # If this item was met again in some other state/county, please take into account any extra information.
+
+        state = self.execution_per_state_county_list[self.state_county_counter]["state"]
+        county = self.execution_per_state_county_list[self.state_county_counter]["county"]
+
+        prepared_dict["states_counties"] = [(state, county)]
+        if prepared_dict["id"] in self.id_to_prepared_dict:
+            prepared_dict_former = self.id_to_prepared_dict[prepared_dict["id"]]
+
+            # a: Get the total states and counties met.
+            prepared_dict["states_counties"].extend(prepared_dict_former["states_counties"])
+
+            logging.info("Added extra states_counties: " + str(prepared_dict["states_counties"]))
+
+            # b: Get any thumbnail information already acquired.
+            prepared_dict["prefetched_thumbnail"] = prepared_dict_former["prefetched_thumbnail"]
+        else:
+            # Alternatively, we may have just met the thumbnail URL in the past. In this case, we should re-use it.
+            content_url = prepared_dict.get("mmdatei", None)
+
+            if content_url is not None and content_url in self.thumbnail_cache:
+                prepared_dict["prefetched_thumbnail"] = self.thumbnail_cache[prepared_dict["mmdatei"]]
+                logging.debug("Thumbnail URL " + content_url + " has been already requested.")
 
         return prepared_dict
 
@@ -229,7 +266,8 @@ class AntaresSpider(CrawlSpider, LomBase):
 
         element_dict = dict(response.meta["item"])  # Element response as a Python dict.
 
-        base.add_value("thumbnail", element_dict.get("mmdatei", ""))  # get or default
+        # base.add_value("thumbnail", element_dict.get("mmdatei", ""))  # get or default
+        base.add_value("thumbnail", element_dict["prefetched_thumbnail"])
 
         return base
 
@@ -292,15 +330,19 @@ class AntaresSpider(CrawlSpider, LomBase):
         permissions.replace_value("public", False)
         permissions.add_value("autoCreateGroups", True)
 
+        element_dict = response.meta["item"]  # Element response as a Python dict.
+
         # TODO: Translate state and county to their DISPLAYNAME? Slight preprocessing on the values might help.
-        state = self.execution_per_state_county_list[self.state_county_counter]["state"]
-        county = self.execution_per_state_county_list[self.state_county_counter]["county"]
+        states_counties = element_dict["states_counties"]
 
-        # TODO: In Merlin it's called LowerSaxony, here you just use the abbreviation.
-        groups = [state + "-private"]
-        groups.append("antares_" + state + "_" + county)
+        groups = set()
 
-        permissions.add_value("groups", groups)
+        for (state, county) in states_counties:
+            # TODO: In Merlin it's called LowerSaxony, here you just use the abbreviation.
+            groups.add(state + "-private")
+            groups.add("antares_" + state + "_" + county)
+
+        permissions.add_value("groups", sorted(list(groups)))
 
         return permissions
 
@@ -355,6 +397,7 @@ class AntaresSpider(CrawlSpider, LomBase):
                                                                                          "/schulcloud/resources")
             exit(-1)
         df = pd.read_csv(filepath, sep=",")
+        df.dropna(inplace=True)
         records = df.to_dict('records')
         return records
 
@@ -399,6 +442,22 @@ class AntaresSpider(CrawlSpider, LomBase):
             logging.error("Wrong field passed to method \"decode_antares_field\"")
 
         return sorted(list(decoded_values))
+
+    def _request_thumbnail(self, prepared_dict, response):
+        response.meta["item"] = prepared_dict
+        lom_technical = self.getLOMTechnical(response)
+
+        url = None
+        if "mmdatei" in prepared_dict:
+            url = prepared_dict["mmdatei"]
+
+        ptp = ProcessThumbnailPipeline()
+        item = {}
+        if url is not None:
+            item["thumbnail"] = url
+        item["lom"] = {"technical": lom_technical}
+        return ptp._get_thumbnail(item)
+
 
     # def _execute_get_url_via_notch(self, content_id: str, state: str, county: str) -> dict:
     #     """

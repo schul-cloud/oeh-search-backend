@@ -192,103 +192,115 @@ class ProcessThumbnailPipeline:
         return img.resize((int(w), int(h)), Image.ANTIALIAS).convert("RGB")
 
     def process_item(self, item, spider):
-        response = None
-        settings = get_project_settings()
-        url = False
+        return self._get_thumbnail(item)
 
-        if "thumbnail" in item:
-            url = item["thumbnail"]
-            response = requests.get(url)
-            logging.debug(
-                "Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s"
-            )
-        elif 'defaultThumbnail' in item:
-            url = item['defaultThumbnail']
-            response = requests.get(url)
-        elif (
-            "location" in item["lom"]["technical"]
-            and "format" in item["lom"]["technical"]
+    def _get_thumbnail(self, item):
+        settings = get_project_settings()
+
+        has_provided_valid_thumbnail = False
+        has_provided_valid_screenshot = False
+
+        # If the thumbnail is already available in a binary form.
+        if "thumbnail" in item and "mimetype" in item["thumbnail"] and \
+                ("small" in item["thumbnail"] or "large" in item["thumbnail"]):
+            has_provided_valid_thumbnail = True
+            logging.debug("Thumbnail has been already prefetched.")
+
+        # If thumbnail URL(s) are provided.
+        if not has_provided_valid_thumbnail and "thumbnail" in item:
+            urls = item["thumbnail"]
+            if not isinstance(item["thumbnail"], list):
+                urls = [urls]
+            if "defaultThumbnail" in item:
+                urls.append(item["defaultThumbnail"])
+
+            # Read thumbnail through the provided thumbnail URLs.
+            for url in urls:
+                response = requests.get(url)
+                logging.debug("Loading thumbnail took " + str(response.elapsed.total_seconds()) + "s")
+                try:
+                    processed_item = self._process_image_response(settings, item, response)
+                    if processed_item is not None:
+                        item = processed_item
+                        has_provided_valid_thumbnail = True
+                        break
+                except Exception as e:
+                    logging.warn("Could not read thumbnail at " + url + ": " + str(e))
+
+        # If the thumbnail URLs were unsuccessful, let us instead take a website screenshot.
+        if not has_provided_valid_thumbnail and (
+                "location" in item["lom"]["technical"]
+            and "format"   in item["lom"]["technical"]
             and item["lom"]["technical"]["format"] == "text/html"
         ):
             if settings.get("SPLASH_URL"):
+                url = item["lom"]["technical"]["location"]
                 response = requests.post(
                     settings.get("SPLASH_URL") + "/render.png",
                     json={
-                        "url": item["lom"]["technical"]["location"],
+                        "url": url,
                         "wait": settings.get("SPLASH_WAIT"),
                         "html5_media": 1,
                         "headers": settings.get("SPLASH_HEADERS"),
                     },
                 )
+                try:
+                    processed_item = self._process_image_response(settings, item, response)
+                    if processed_item is not None:
+                        item = processed_item
+                        has_provided_valid_screenshot = True
+                except Exception as e:
+                    logging.warn("Could not read thumbnail at " + url + ": " + str(e))
             else:
-                logging.warning(
-                    "No thumbnail provided and SPLASH_URL was not configured for screenshots!"
-                )
-        if response == None:
-            logging.error(
-                "Neither thumbnail or technical.location provided! Please provide at least one of them"
+                logging.warn("Neither thumbnail or technical.location provided! Please provide at least one of them")
+
+        if not has_provided_valid_thumbnail and not has_provided_valid_screenshot:
+            logging.warn("No thumbnail or (resource's) website screenshot was obtained.")
+            raise DropItem(
+                "No thumbnail provided or resource was unavailable for fetching"
             )
+
+        return item
+
+    def _process_image_response(self, settings, item, response):
+        if response.headers["Content-Type"] == "image/svg+xml":
+            if len(response.content) > settings.get("THUMBNAIL_MAX_SIZE"):
+                raise Exception(
+                    "SVG images can't be converted, and the given image exceeds the maximum allowed size ("
+                    + str(len(response.content))
+                    + " > "
+                    + str(settings.get("THUMBNAIL_MAX_SIZE"))
+                    + ")"
+                )
+            item["thumbnail"] = {}
+            item["thumbnail"]["mimetype"] = response.headers["Content-Type"]
+            item["thumbnail"]["small"] = base64.b64encode(
+                response.content
+            ).decode()
         else:
-            try:
-                if response.headers["Content-Type"] == "image/svg+xml":
-                    if len(response.content) > settings.get("THUMBNAIL_MAX_SIZE"):
-                        raise Exception(
-                            "SVG images can't be converted, and the given image exceeds the maximum allowed size ("
-                            + str(len(response.content))
-                            + " > "
-                            + str(settings.get("THUMBNAIL_MAX_SIZE"))
-                            + ")"
-                        )
-                    item["thumbnail"] = {}
-                    item["thumbnail"]["mimetype"] = response.headers["Content-Type"]
-                    item["thumbnail"]["small"] = base64.b64encode(
-                        response.content
-                    ).decode()
-                else:
-                    img = Image.open(BytesIO(response.content))
-                    small = BytesIO()
-                    self.scaleImage(img, settings.get("THUMBNAIL_SMALL_SIZE")).save(
-                        small,
-                        "JPEG",
-                        mode="RGB",
-                        quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
-                    )
-                    large = BytesIO()
-                    self.scaleImage(img, settings.get("THUMBNAIL_LARGE_SIZE")).save(
-                        large,
-                        "JPEG",
-                        mode="RGB",
-                        quality=settings.get("THUMBNAIL_LARGE_QUALITY"),
-                    )
-                    item["thumbnail"] = {}
-                    item["thumbnail"]["mimetype"] = "image/jpeg"
-                    item["thumbnail"]["small"] = base64.b64encode(
-                        small.getvalue()
-                    ).decode()
-                    item["thumbnail"]["large"] = base64.b64encode(
-                        large.getvalue()
-                    ).decode()
-            except Exception as e:
-                if url:
-                    logging.warn(
-                        "Could not read thumbnail at "
-                        + url
-                        + ": "
-                        + str(e)
-                    )
-                if "thumbnail" in item:
-                    logging.warn("(falling back to " + ("defaultThumbnail" if "defaultThumbnail" in item else "screenshot") + ")")
-                    del item["thumbnail"]
-                    return self.process_item(item, spider)
-                elif 'defaultThumbnail' in item:
-                    logging.warn("(falling back to screenshot)")
-                    del item['defaultThumbnail']
-                    return self.process_item(item, spider)
-                else:
-                    # item['thumbnail']={}
-                    raise DropItem(
-                        "No thumbnail provided or ressource was unavailable for fetching"
-                    )
+            img = Image.open(BytesIO(response.content))
+            small = BytesIO()
+            self.scaleImage(img, settings.get("THUMBNAIL_SMALL_SIZE")).save(
+                small,
+                "JPEG",
+                mode="RGB",
+                quality=settings.get("THUMBNAIL_SMALL_QUALITY"),
+            )
+            large = BytesIO()
+            self.scaleImage(img, settings.get("THUMBNAIL_LARGE_SIZE")).save(
+                large,
+                "JPEG",
+                mode="RGB",
+                quality=settings.get("THUMBNAIL_LARGE_QUALITY"),
+            )
+            item["thumbnail"] = {}
+            item["thumbnail"]["mimetype"] = "image/jpeg"
+            item["thumbnail"]["small"] = base64.b64encode(
+                small.getvalue()
+            ).decode()
+            item["thumbnail"]["large"] = base64.b64encode(
+                large.getvalue()
+            ).decode()
         return item
 
 
