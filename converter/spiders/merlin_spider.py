@@ -1,6 +1,8 @@
 import xmltodict as xmltodict
 from lxml import etree
 from scrapy.spiders import CrawlSpider
+import logging
+import json
 
 from converter.constants import Constants
 from converter.items import *
@@ -27,6 +29,24 @@ class MerlinSpider(CrawlSpider, LomBase):
     def __init__(self, **kwargs):
         LomBase.__init__(self, **kwargs)
 
+        # Following https://docs.python.org/3/howto/logging-cookbook.html
+
+        # create logger with 'spam_application'
+        # logging.basicConfig(filename='example.log', level=logging.DEBUG)
+        logger = logging.getLogger('merlin_spider')
+
+        # create file handler which logs even debug messages
+        fh = logging.FileHandler(self.name + '.log', mode='w')
+        fh.setLevel(logging.INFO)
+
+        # create formatter and add it to the handlers
+        # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        # fh.setFormatter(formatter)
+
+        logger.addHandler(fh)
+        logger.propagate = False
+
+
     def start_requests(self):
         yield scrapy.Request(
             url=self.apiUrl.replace("%start", str(self.page * self.limit)).replace(
@@ -37,7 +57,7 @@ class MerlinSpider(CrawlSpider, LomBase):
         )
 
     def parse(self, response: scrapy.http.Response):
-        print("Parsing URL: " + response.url)
+        logging.info("Parsing URL: " + response.url)
 
         # Call Splash only once per page (that contains multiple XML elements).
         data = self.getUrlData(response.url)
@@ -64,19 +84,21 @@ class MerlinSpider(CrawlSpider, LomBase):
                     element_dict = element_dict["data"]
 
                     # Preparing the values here helps for all following logic across the methods.
-                    self.prepare_element(element_dict)
+                    prepared_dict = self.prepare_element(element_dict)
+
+                    self.logger.info(str(prepared_dict["id"]) + "," + str(len(prepared_dict["county_ids"])))
 
                     # If there is no available county (Kreis) code, then we do not want to deal with this element.
-                    if not("county_ids" in element_dict
-                           and element_dict["county_ids"] is not None
-                           and len(element_dict["county_ids"]) > 0):
+                    if not("county_ids" in prepared_dict
+                           and prepared_dict["county_ids"] is not None
+                           and len(prepared_dict["county_ids"]) > 0):
                         continue
 
                     # TODO: It's probably a pointless attribute.
                     # del element_dict["data"]["score"]
 
                     # Passing the dictionary for easier access to attributes.
-                    copyResponse.meta["item"] = element_dict
+                    copyResponse.meta["item"] = prepared_dict
 
                     # In case JSON string representation is preferred:
                     # copyResponse._set_body(json.dumps(copyResponse.meta['item'], indent=1, ensure_ascii=False))
@@ -88,8 +110,8 @@ class MerlinSpider(CrawlSpider, LomBase):
                     # LomBase.parse() has to be called for every individual instance that needs to be saved to the database.
                     LomBase.parse(self, copyResponse)
                 except Exception as e:
-                    print("Issues with the element: " + str(element_dict["id_local"]) if "id_local" in element_dict else "")
-                    print(str(e))
+                    logging.info("Issues with the element: " + str(element_dict["id_local"]) if "id_local" in element_dict else "")
+                    logging.info(str(e))
 
         current_expected_count = (self.page+1) * self.limit
 
@@ -278,7 +300,10 @@ class MerlinSpider(CrawlSpider, LomBase):
         return permissions
 
     def prepare_element(self, element_dict):
+        element_dict["id"] = element_dict["id_local"]
+
         # Step 1. Prepare county (Kreis) codes.
+        element_dict["county_ids"] = []
         if "kreis_id" in element_dict and element_dict["kreis_id"] is not None:
             county_ids = element_dict["kreis_id"]["data"]  # ... redundant extra nested dictionary "data"...
             if not isinstance(county_ids, list):  # one element
