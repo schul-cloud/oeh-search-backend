@@ -1,7 +1,6 @@
 import copy
 import json
-import time
-from datetime import datetime
+import os
 
 from scrapy.spiders import CrawlSpider
 
@@ -371,6 +370,11 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                 element["searchable"] = 0
                 element["aggregation_level"] = 1
                 element["uuid"] = edusharing.buildUUID(element["downloadUrl"])
+
+                if "dateiName" in element:
+                    # Remove the file extension
+                    filename, file_extension = os.path.splitext(element["dateiName"])
+                    element["title"] = filename
 
             # Add connections from parent to children elements.
             parent_element, group = self.relate_parent_with_children_elements(parent_element, group)
