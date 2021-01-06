@@ -371,7 +371,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                 if "dateiName" in element:
                     # Remove the file extension
                     filename, file_extension = os.path.splitext(element["dateiName"])
-                    element["title"] = filename
+                    element["title"] = filename.replace("_", " ")
 
             # Add connections from parent to children elements.
             parent_element, group = self.relate_parent_with_children_elements(parent_element, group)
