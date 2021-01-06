@@ -357,10 +357,7 @@ class MediothekPixiothekSpider(CrawlSpider, LomBase):
                     parent_element["serientitel"] == single_element_collection_serientitel:
                 parent_element["title"] = parent_element["einzeltitel"]
             else:
-                if "serientitel" in parent_element:
-                    parent_element["title"] = parent_element["serientitel"]
-                else:
-                    parent_element["title"] = parent_element["einzeltitel"]
+                parent_element["title"] = parent_element["einzeltitel"]
 
             parent_element["searchable"] = 1
             parent_element["aggregation_level"] = 2
