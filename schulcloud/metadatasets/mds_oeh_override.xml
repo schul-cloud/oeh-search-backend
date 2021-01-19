@@ -24,6 +24,11 @@
 				<multiplejoin>OR</multiplejoin>
 			</property>
 
+			<property name="ccm:replicationsourceuuid">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+
 		</query>
 	</queries>
 	<queries syntax="dsl">
@@ -44,6 +49,11 @@
 			</property>
 
 			<property name="ccm:hpi_lom_relation">
+				<multiple>true</multiple>
+				<multiplejoin>OR</multiplejoin>
+			</property>
+
+			<property name="ccm:replicationsourceuuid">
 				<multiple>true</multiple>
 				<multiplejoin>OR</multiplejoin>
 			</property>
