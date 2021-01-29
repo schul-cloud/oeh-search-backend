@@ -118,14 +118,21 @@ class EduSharing:
         groupBy = []
         if "ccm:replicationsourceorigin" in properties:
             groupBy = ["ccm:replicationsourceorigin"]
-        response = EduSharing.bulkApi.sync(
-            body=properties,
-            match=["ccm:replicationsource", "ccm:replicationsourceid"],
-            type=type,
-            group=spider.name,
-            group_by=groupBy,
-            reset_version=EduSharing.resetVersion,
-        )
+        try:
+            response = EduSharing.bulkApi.sync(
+                body=properties,
+                match=["ccm:replicationsource", "ccm:replicationsourceid"],
+                type=type,
+                group=spider.name,
+                group_by=groupBy,
+                reset_version=EduSharing.resetVersion,
+            )
+        except ApiException as e:
+            jsonError = json.loads(e.body)
+            if jsonError["error"] == "java.lang.IllegalStateException":
+                logging.warning("Node '" + properties['cm:name'][0] + "' probably blocked for sync: " + jsonError["message"])
+                return None
+            raise e
         return response["node"]
 
     def setNodeText(self, uuid, item) -> bool:
@@ -189,6 +196,9 @@ class EduSharing:
             if license["url"] == Constants.LICENSE_CC_BY_40:
                 spaces["ccm:commonlicense_key"] = "CC_BY"
                 spaces["ccm:commonlicense_cc_version"] = "4.0"
+            if license["url"] == Constants.LICENSE_CC_BY_30:
+                spaces["ccm:commonlicense_key"] = "CC_BY"
+                spaces["ccm:commonlicense_cc_version"] = "3.0"
             if license["url"] == Constants.LICENSE_CC_BY_SA_30:
                 spaces["ccm:commonlicense_key"] = "CC_BY_SA"
                 spaces["ccm:commonlicense_cc_version"] = "3.0"
@@ -209,6 +219,11 @@ class EduSharing:
         if "internal" in license:
             if license["internal"] == Constants.LICENSE_COPYRIGHT_LAW:
                 spaces["ccm:commonlicense_key"] = "COPYRIGHT_FREE"
+            if license["internal"] == Constants.LICENSE_CUSTOM:
+                spaces["ccm:commonlicense_key"] = "CUSTOM"
+                if "description" in license:
+                    spaces["cclom:rights_description"] = license["description"]
+
         if "author" in license:
             spaces["ccm:author_freetext"] = license["author"]
 
@@ -244,6 +259,8 @@ class EduSharing:
 
         if "keyword" in item["lom"]["general"]:
             spaces["cclom:general_keyword"] = (item["lom"]["general"]["keyword"],)
+        else:
+            spaces["cclom:general_keyword"] = []
         # TODO: this does currently not support multiple values per role
         if "lifecycle" in item["lom"]:
             for person in item["lom"]["lifecycle"]:
