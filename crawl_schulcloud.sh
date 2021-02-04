@@ -5,9 +5,9 @@ cd $working_dir
 source .venv/bin/activate
 
 spiders=(
-        "oeh"
-        "mediothek_pixiothek"
-        "merlin"
+        "oeh_spider"
+        "mediothek_pixiothek_spider"
+        "merlin_spider"
 )
 
 print_logo=false
@@ -71,17 +71,28 @@ do
         # Execute the spider
         if [ "$show_spider_output" = true ] ; then
           # ... , save its output to "nohup_SPIDER.out", AND print stdout and stderr.
-          scrapy crawl ${spider}_spider -a resetVersion=true | tee -a nohups/nohup_${spider}.out
+          scrapy crawl ${spider} -a resetVersion=true | tee -a nohups/nohup_${spider}.out
         elif [ "$show_spider_output" = false ] && [ "$use_nohup" = true ]; then
           # Execute the spider and save its output to two files: "nohup_SPIDER.out" (individual log) and "nohup.out"
           # (collective logs).
-          nohup scrapy crawl ${spider}_spider -a resetVersion=true | tee -a nohups/nohup_${spider}.out \
+          nohup scrapy crawl ${spider} -a resetVersion=true | tee -a nohups/nohup_${spider}.out \
                 nohups/nohup.out >/dev/null 2>&1 &
         else # elif [ "$show_spider_output" = false ] && [ "use_nohup" = false ]; then
           # ... and save its output to "nohup_SPIDER.out".
-          scrapy crawl ${spider}_spider -a resetVersion=true &> nohups/nohup_${spider}.out
+          scrapy crawl ${spider} -a resetVersion=true &> nohups/nohup_${spider}.out
         fi
 
         echo "Finished with $spider spider"
 done
+
+# Gathering reports
+for spider in ${spiders[@]}
+do
+  echo "Gathering report for $spider spider"
+  spider_output=$(tail -n 40 nohups/nohup_merlin_spider_test.out)
+  spider_output_statistics=${spider_output#*finished)}  # Remove everything before the string 'finished)'
+  echo "$spider_output_statistics" | mailx -s "Test subject" mail1 mail2 mail3
+  echo "Report sent for $spider spider"
+done
+
 echo "Finished with all spiders! :-)"
