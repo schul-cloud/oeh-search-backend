@@ -1,7 +1,7 @@
 #!/bin/bash
 
-cur_dir=/root/oeh-search-etl-branches/master_cron/oeh-search-etl
-cd $cur_dir
+working_dir=/root/oeh-search-etl-branches/master_cron/oeh-search-etl
+cd $working_dir
 source .venv/bin/activate
 
 spiders=(
@@ -12,6 +12,10 @@ spiders=(
 
 print_logo=false
 show_spider_output=false
+
+# dev, prod | WARNING: It assumes the existence of .env.dev and .env.prod in the converter/ directory. Please refer to
+# .env.example for reference environmental variables.
+environment="dev"
 
 # Set to true only when $show_spider_output = false. Please prefer to keep to false, at least for crawlings against the
 # production machine. (It causes the execution to run in the background and, thus, multiple spiders will run.)
@@ -43,6 +47,13 @@ if [ "$print_logo" = true ] ; then
 / /_/ / /___/ __  /  (__  ) /_/ / / /_/ /  __/ /  (__  )
 \____/_____/_/ /_/  /____/ .___/_/\__,_/\___/_/  /____/
                         /_/'
+fi
+
+if ! test -f "converter/.env.$environment"; then
+  echo "converter/.env.$environment does not exist. Exiting..."
+  exit 2
+else
+  cp "converter/.env.$environment" "converter/.env"
 fi
 
 
