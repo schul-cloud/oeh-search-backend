@@ -1,36 +1,28 @@
 #!/bin/bash
 
-# This script is used to execute the spiders, while storing their output to log files.
+cur_dir=/root/oeh-search-etl-branches/master_cron/oeh-search-etl
+cd $cur_dir
+source .venv/bin/activate
 
-# First we store all spiders in an array variable.
 spiders=(
-	"br_rss"
-	"digitallearninglab"
-	"geogebra"
-	"irights"
-	"leifi"
-	"mediothek_pixiothek"
-	"memucho"
-	"merlin"
-	"oai_sodis"
-	"planet_schule"
-	"rlp"
-	"serlo"
-	"wirlernenonline"
-	"wirlernenonline_gsheet"
-	"zdf_rss"
-	"zoerr"
-	"zum"
+        "oeh"
+        "mediothek_pixiothek"
+        "merlin"
 )
 
-# Print the spiders that wil be executed (for debugging purposes).
-#echo ${spiders[@]}
+print_logo=false
+show_spider_output=false
+
+# Set to true only when $show_spider_output = false. Please prefer to keep to false, at least for crawlings against the
+# production machine. (It causes the execution to run in the background and, thus, multiple spiders will run.)
+use_nohup=false
 
 # Make the directory "nohups" if it does not already exist.
 mkdir -p nohups
 
-echo 
-'
+###################################
+if [ "$print_logo" = true ] ; then
+    echo '
                           (
                            )
                           (
@@ -45,25 +37,34 @@ echo
                  (\ |)   '---'   (| /)
                   ` (|           |) `
                     \)           (/
-   ____  ________  __              _     __              
+   ____  ________  __              _     __
   / __ \/ ____/ / / /  _________  (_)___/ /__  __________
  / / / / __/ / /_/ /  / ___/ __ \/ / __  / _ \/ ___/ ___/
-/ /_/ / /___/ __  /  (__  ) /_/ / / /_/ /  __/ /  (__  ) 
-\____/_____/_/ /_/  /____/ .___/_/\__,_/\___/_/  /____/  
-                        /_/                              		
-'
+/ /_/ / /___/ __  /  (__  ) /_/ / / /_/ /  __/ /  (__  )
+\____/_____/_/ /_/  /____/ .___/_/\__,_/\___/_/  /____/
+                        /_/'
+fi
+
 
 # Execute the spiders.
 for spider in ${spiders[@]}
 do
-	echo "Executing $spider spider."
-	
-	# Execute the spider and save its output to two files: "nohup_SPIDER.out" (individual log) and "nohup.out" (collective logs).
-	#nohup scrapy crawl ${spider}_spider -a resetVersion=true | tee -a nohups/nohup_${spider}.out nohups/nohup.out >/dev/null 2>&1 &
-	#nohup scrapy crawl ${spider}_spider -a cleanrun=true | tee -a nohups/nohup_${spider}.out nohups/nohup.out >/dev/null 2>&1 &
-	nohup scrapy crawl ${spider}_spider | tee -a nohups/nohup_${spider}.out nohups/nohup.out >/dev/null & 2>&1
-	
-	# Execute the spider in the background. 
-	#scrapy crawl ${spider}_spider &
+        echo "Executing $spider spider."
+
+        # Execute the spider
+        if [ "$show_spider_output" = true ] ; then
+          # ... , save its output to "nohup_SPIDER.out", AND print stdout and stderr.
+          scrapy crawl ${spider}_spider -a resetVersion=true | tee -a nohups/nohup_${spider}.out
+        elif [ "$show_spider_output" = false ] && [ "$use_nohup" = true ]; then
+          # Execute the spider and save its output to two files: "nohup_SPIDER.out" (individual log) and "nohup.out"
+          # (collective logs).
+          nohup scrapy crawl ${spider}_spider -a resetVersion=true | tee -a nohups/nohup_${spider}.out \
+                nohups/nohup.out >/dev/null 2>&1 &
+        else # elif [ "$show_spider_output" = false ] && [ "use_nohup" = false ]; then
+          # ... and save its output to "nohup_SPIDER.out".
+          scrapy crawl ${spider}_spider -a resetVersion=true &> nohups/nohup_${spider}.out
+        fi
+
+        echo "Finished with $spider spider"
 done
-echo "Happy crawling! :-)"
+echo "Finished with all spiders! :-)"
