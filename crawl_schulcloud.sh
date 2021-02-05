@@ -82,17 +82,20 @@ do
           scrapy crawl ${spider} -a resetVersion=true &> nohups/nohup_${spider}.out
         fi
 
-        echo "Finished with $spider spider"
-done
+        echo "Finished execution of $spider spider"
 
-# Gathering reports
-for spider in ${spiders[@]}
-do
-  echo "Gathering report for $spider spider"
-  spider_output=$(tail -n 40 nohups/nohup_merlin_spider_test.out)
-  spider_output_statistics=${spider_output#*finished)}  # Remove everything before the string 'finished)'
-  echo "$spider_output_statistics" | mailx -s "Test subject" mail1 mail2 mail3
-  echo "Report sent for $spider spider"
+        # If the env var $mailx_recipients is set, please send the report to it. (Could be multiple addresses separated
+        # via a white spaces). e.g., export mailx_recipients="mail1@hpi.de mail2@hpi.de ... mailN@hpi.de"
+        if [ ! -z ${mailx_recipients+x} ]; then
+          echo "Gathering report for $spider spider"
+
+          spider_output=$(tail -n 40 nohups/nohup_merlin_spider_test.out)
+          # Remove everything before and including the string 'INFO: Closing spider (finished)'
+          spider_output_statistics="*** Report for ${spider} crawling ***"${spider_output#*"INFO: Closing spider (finished)"}
+          echo "$spider_output_statistics" | mailx -s "${spider} has just finished crawling." ${mailx_recipients}
+
+          echo "Report sent for $spider spider"
+        fi
 done
 
 echo "Finished with all spiders! :-)"
