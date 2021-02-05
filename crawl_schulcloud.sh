@@ -1,4 +1,7 @@
 #!/bin/bash
+# Please execute this script in the following way:
+# env mailx_recipients="e-mail1 e-mail2 ... e-mailN" bash crawl_schulcloud.sh
+# TIP: This is how you could include it in a cronjob as well.
 
 working_dir=/root/oeh-search-etl-branches/master_cron/oeh-search-etl
 cd $working_dir
