@@ -8,9 +8,9 @@ cd $working_dir
 source .venv/bin/activate
 
 spiders=(
-        "oeh_spider"
         "mediothek_pixiothek_spider"
         "merlin_spider"
+        "oeh_spider"
 )
 
 print_logo=false
@@ -92,7 +92,7 @@ do
         if [ ! -z ${mailx_recipients+x} ]; then
           echo "Gathering report for $spider spider"
 
-          spider_output=$(tail -n 40 nohups/nohup_merlin_spider_test.out)
+          spider_output=$(tail -n 40 nohups/nohup_${spider}.out)
           # Remove everything before and including the string 'INFO: Closing spider (finished)'
           spider_output_statistics="*** Report for ${spider} crawling ***"${spider_output#*"INFO: Closing spider (finished)"}
           echo "$spider_output_statistics" | mailx -s "${spider} has just finished crawling." ${mailx_recipients}
