@@ -328,17 +328,30 @@ class JSONStorePipeline(object):
         self.file = open("output_" + spider.name + ".json", 'wb')
         self.exporter = JsonItemExporter(
             self.file,
+            # fields_to_export=[
+            #     "sourceId",
+            #     "lom",
+            #     # "valuespaces",
+            #     "license",
+            #     # "type",
+            #     # "origin",
+            #     # "fulltext",
+            #     # "ranking",
+            #     # "lastModified",
+            #     # "thumbnail",
+            # ],
             fields_to_export=[
                 "sourceId",
                 "lom",
-                # "valuespaces",
+                "valuespaces",
                 "license",
-                # "type",
-                # "origin",
-                # "fulltext",
-                # "ranking",
-                # "lastModified",
-                # "thumbnail",
+                "type",
+                "origin",
+                "fulltext",
+                "ranking",
+                "lastModified",
+                "thumbnail",
+                "space"
             ],
             encoding='utf-8',
             ensure_ascii=False)

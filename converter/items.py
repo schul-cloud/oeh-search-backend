@@ -198,6 +198,7 @@ class BaseItem(Item):
     searchable = Field()
     # editorial notes
     notes = Field()
+    space = Field()
 
 
 class BaseItemLoader(ItemLoader):

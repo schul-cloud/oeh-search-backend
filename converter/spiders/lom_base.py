@@ -105,6 +105,13 @@ class LomBase(MethodPerformanceTracing):
         main.add_value("permissions", self.getPermissions(response).load_item())
         logging.debug(main.load_item())
         main.add_value("response", self.mapResponse(response).load_item())
+        item = dict(main.load_item())
+        space = {}
+        try:
+            space = EduSharing().transformItem(self.getUUID(response), self, item)
+        except:
+            pass
+        main.add_value("space", space)
         return main.load_item()
 
     def html2Text(self, html):
