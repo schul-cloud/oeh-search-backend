@@ -347,14 +347,16 @@ class JSONStorePipeline(object):
                 "license",
                 "type",
                 "origin",
-                "fulltext",
+                # "fulltext", # Good information, but too much data!
                 "ranking",
                 "lastModified",
                 "thumbnail",
                 "space"
             ],
             encoding='utf-8',
-            ensure_ascii=False)
+            ensure_ascii=False,
+            indent=4
+        )
         self.exporter.start_exporting()
 
     def close_spider(self, spider):
@@ -411,6 +413,7 @@ class EduSharingStorePipeline(EduSharing):
                 "lastModified",
                 "thumbnail",
             ],
+            indent=4
         )
         exporter.export_item(item)
         title = "<no title>"
