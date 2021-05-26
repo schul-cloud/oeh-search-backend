@@ -14,12 +14,12 @@ from urllib.parse import urlparse
 
 
 def prepare_records(df: pd.DataFrame):
-    r_dummy = prepare_record({})
+    r_dummy = get_prepared_record({})
     for k, v in r_dummy.items():
         df[k] = ""
 
     for i, r in df.iterrows():
-        r_prepared = prepare_record(r.to_dict(into=dict))
+        r_prepared = get_prepared_record(r.to_dict(into=dict))
         for k, v in r_prepared.items():
             df.at[i, k] = v
 
@@ -27,7 +27,7 @@ def prepare_records(df: pd.DataFrame):
 
     return df
 
-def prepare_record(r: dict) -> dict:
+def get_prepared_record(r: dict) -> dict:
     thumbnail_metadata = get_thumbnail_metadata(r)
     r = {**r, **thumbnail_metadata}  # add thumbnail_metadata (dict) to r (dict) -- i.e., merge.
 

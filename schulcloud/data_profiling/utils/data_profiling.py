@@ -1,4 +1,6 @@
-from schulcloud.data_cleaning.utils.data_exploration import generate_aggregate_statistics
+import copy
+
+from schulcloud.data_profiling.utils.data_exploration import generate_aggregate_statistics
 import pandas as pd
 
 from functools import reduce
@@ -74,6 +76,9 @@ def gather_exploratory_queries(df: pd.DataFrame):
 
     # Group records by location and include title, description, and id.
     duplicates_attributes_info = ["space.cclom:location", "lom.general.title", "lom.general.description", "sourceId"]
+    for attr in copy.deepcopy(duplicates_attributes_info):
+        if attr not in df.columns:
+            duplicates_attributes_info.remove(attr)
     # duplicates_count = df[duplicates_attributes_info].groupby(by=["space.cclom:location"])[duplicates_attributes_info].count().filter(lambda group: group.size > 1)
     duplicates_count = df[duplicates_attributes_info].groupby(by=["space.cclom:location"])[duplicates_attributes_info].count()
     duplicates_count = duplicates_count.rename(columns={"space.cclom:location": "count"})

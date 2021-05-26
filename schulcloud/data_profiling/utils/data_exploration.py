@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 import pickle
 
-from schulcloud.data_cleaning.utils.data_cleaning import prepare_record
+from schulcloud.data_profiling.utils.data_cleaning import get_prepared_record
 
 
 def generate_aggregate_statistics(df: pd.DataFrame):
@@ -54,7 +54,7 @@ def block_by_thumbnail(workspace: str, dataset_json: str):
             for item in tqdm(ijson.items(json_file, "item")):
                 counter += 1
                 # print(item)
-                item = prepare_record(item)
+                item = get_prepared_record(item)
 
                 thumbnail_str = item["thumbnail"]["large"] if "large" in item["thumbnail"] else item["thumbnail"][
                     "small"]
