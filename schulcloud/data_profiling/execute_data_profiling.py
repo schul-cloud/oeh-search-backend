@@ -25,7 +25,7 @@ def get_parser():
                         default=json_file_path)
     return parser
 
-def clean_dataset():
+def profile_dataset():
     parser = get_parser()
     args = parser.parse_args()
 
@@ -93,4 +93,4 @@ def export_dict_to_excel(info: dict, filepath: str):
 
 
 if __name__ == '__main__':
-    clean_dataset()
+    profile_dataset()
