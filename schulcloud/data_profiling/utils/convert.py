@@ -3,25 +3,19 @@ Converts JSON with nested fields into a flattened CSV file.
 https://stackoverflow.com/questions/1871524/how-can-i-convert-json-to-csv
 """
 
-import sys
-import json
 import csv
-import os
+import json
 
 import csv_to_sqlite
 import ijson
-import jsonlines
-
 import pandas as pd
-
-# from orderedset import OrderedSet
-
 # from https://stackoverflow.com/a/28246154/473201
-from jsonlines import Error
 from orderedset._orderedset import OrderedSet
 from tqdm import tqdm
 
-from schulcloud.data_profiling.utils.data_cleaning import get_prepared_record
+
+# from orderedset import OrderedSet
+from schulcloud.data_profiling.utils.data_cleaning_utils import get_prepared_record
 
 
 def flattenjson( b, prefix='', delim='/', val=None ):

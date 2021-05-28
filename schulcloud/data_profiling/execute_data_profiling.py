@@ -1,19 +1,19 @@
+import argparse
 import os
 import sys
-import argparse
+from datetime import datetime
 
 import pandas as pd
 
-from schulcloud.data_profiling.utils.convert import convert_json_to_csv, convert_csv_to_sqlite
-from schulcloud.data_profiling.utils.data_exploration import keep_non_multicolor_thumbnails, group_same_thumbnails, \
-    detect_near_duplicates
-from schulcloud.data_profiling.utils.data_profiling import gather_statistics, gather_exploratory_queries
+from schulcloud.data_profiling.data_profiling import profile_dataset
 
-def get_parser():
+
+def parse_arguments_profiling(argv):
     workspace = "/data/Projects/schulcloud/code/oeh-search-etl/schulcloud/data_profiling/data/"
     # dataset = "oeh";json_file_path = workspace + "output_oeh_spider.json"
     # dataset = "merlin";json_file_path = workspace + "output_merlin_spider.json"
-    dataset = "mediothek";json_file_path = workspace + "output_mediothek_pixiothek_spider.json"
+    dataset = "mediothek"
+    json_file_path = workspace + "output_mediothek_pixiothek_spider.json"
 
     parser = argparse.ArgumentParser(description='Profile your dataset')
 
@@ -23,60 +23,37 @@ def get_parser():
     parser.add_argument('--json_file_path', metavar='J', type=str, nargs='+',
                         help='the path of the file to be profiled',
                         default=json_file_path)
-    return parser
 
-def profile_dataset():
-    parser = get_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    if not os.path.exists(args.json_file_path):
+    dataset = args.dataset if type(args.dataset) is not list else args.dataset[0]
+    json_file_path = args.json_file_path if type(args.json_file_path) is not list else args.json_file_path[0]
+
+    if not os.path.exists(json_file_path):
         print('The path specified does not exist')
         sys.exit()
 
-    workspace = os.path.dirname(os.path.abspath(args.json_file_path)) + os.path.sep
-    dataset = args.dataset
-    dataset_json = args.json_file_path
+    arguments = {
+        "workspace": os.path.dirname(os.path.abspath(json_file_path)) + os.path.sep,
+        "dataset": dataset,
+        "dataset_json": json_file_path,
+        "dataset_csv": json_file_path + ".csv",
+        "dataset_sqlite": json_file_path + ".db",
+        "dataset_exploratory_queries_excel_path": json_file_path + "_exploratory_queries_" + datetime.today().strftime(
+            '%Y_%m_%d') + ".xlsx"
+    }
 
-    dataset_csv = dataset_json + ".csv"
-    dataset_sqlite = dataset_json + ".db"
-    dataset_aggregated_statistics_csv = dataset_json + "_aggregated_statistics.csv"
-    dataset_exploratory_queries_csv = dataset_json + "_exploratory_queries.xlsx"
+    return arguments
 
-    pd.set_option('display.max_columns', None)
-    """
-    Data Exploration
-    
-    Before we decide on things we want to examine regularly with Data Profiling, we need to explore the data and find 
-    out potential issues.
-    """
-    # Step 1: Convert data (skipping thumbnails due to large size).
-    if not os.path.exists(dataset_csv):
-        convert_json_to_csv(dataset_json, dataset_csv)
-    if not os.path.exists(dataset_sqlite):
-        convert_csv_to_sqlite(dataset_csv, dataset_sqlite)
-    df = pd.read_csv(dataset_csv)
-    df = df.fillna('')
 
-    # Step 2: Explore data
-    # a. Execute SQL queries (reuse existing SQL files) manually using SQL queries under 'utils/sql_queries'.
+def execute_profiling(argv=None):
+    arguments = parse_arguments_profiling(argv)
 
-    # b. Thumbnails:
-    group_same_thumbnails(workspace, dataset, dataset_json)
-    keep_non_multicolor_thumbnails(workspace, dataset, dataset_json)
+    profiling_exploratory_queries = profile_dataset(arguments["workspace"], arguments["dataset"],
+                                                    arguments["dataset_csv"], arguments["dataset_json"],
+                                                    arguments["dataset_sqlite"])
 
-    # Manually examine thumbnails for duplications under data_profiling/data/thumbnails_*
-    detect_near_duplicates(workspace, dataset_json)
-
-    """
-    Data Profiling
-    
-    Gather things we considered in data exploration to be meaningful and export them in an easy to read format. 
-    """
-    exploratory_queries = gather_exploratory_queries(df)
-    df_aggregated_statistics = gather_statistics(df)
-    exploratory_queries["Aggregated statistics"] = df_aggregated_statistics
-    # df_aggregated_statistics.to_csv(dataset_aggregated_statistics_csv)
-    export_dict_to_excel(exploratory_queries, dataset_exploratory_queries_csv)
+    export_dict_to_excel(profiling_exploratory_queries, arguments["dataset_exploratory_queries_excel_path"])
 
 
 def export_dict_to_excel(info: dict, filepath: str):
@@ -92,5 +69,6 @@ def export_dict_to_excel(info: dict, filepath: str):
     writer.save()
 
 
+
 if __name__ == '__main__':
-    profile_dataset()
+    execute_profiling()

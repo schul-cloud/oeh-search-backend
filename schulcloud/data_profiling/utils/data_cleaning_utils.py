@@ -1,16 +1,10 @@
-import io
-
-import mpimg as mpimg
-import pandas as pd
 import base64
-from PIL import Image
-from matplotlib import pyplot as plt
-import matplotlib
-from urllib.parse import urlparse, urlunparse, quote
-
-from url_normalize import url_normalize
-
+import io
 from urllib.parse import urlparse
+
+import pandas as pd
+from PIL import Image
+from url_normalize import url_normalize
 
 
 def prepare_records(df: pd.DataFrame):

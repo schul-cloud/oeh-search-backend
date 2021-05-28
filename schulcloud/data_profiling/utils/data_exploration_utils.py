@@ -1,19 +1,15 @@
 import base64
 import io
-import json
 import os
+import pickle
 
 import ijson
 import numpy as np
 import pandas as pd
-import pprint
-
 from PIL import Image
 from tqdm import tqdm
 
-import pickle
-
-from schulcloud.data_profiling.utils.data_cleaning import get_prepared_record
+from schulcloud.data_profiling.utils.data_cleaning_utils import get_prepared_record
 
 
 def generate_aggregate_statistics(df: pd.DataFrame):
@@ -31,9 +27,6 @@ def generate_aggregate_statistics(df: pd.DataFrame):
         df[col].replace(r'^\s*$', np.nan, regex=True)
         stats["completeness"][col] = df[col].count() / len(df[col])
         stats["uniqueness"][col] = len(df[col].unique()) / df[col].count()
-
-    # print(stats)
-    # print(json.dumps(stats, indent=2, default=str))
 
     return stats
 
@@ -126,5 +119,5 @@ def keep_non_multicolor_thumbnails(workspace, dataset, dataset_json):
 
 
 def detect_near_duplicates(workspace, dataset_json):
-
+    # TODO
     pass
