@@ -47,10 +47,12 @@ def gather_exploratory_queries(df: pd.DataFrame):
         # df[attribute_group_name + "_length"] = df[attribute_group].apply(lambda x: len(x))
         top100_attributes = [attribute_group] + [attribute_group_name + "_length"]
 
-        sorted_by_length = df[top100_attributes].groupby(by=[attribute_group])[top100_attributes].count()
-        sorted_by_length = sorted_by_length.rename(columns={attribute_group: "count"})
-        # sorted_by_length = df[top100_attributes].sort_values(by=[attribute_group_name + "_length"], ascending=False)
-        sorted_by_length = sorted_by_length.sort_values(by=[attribute_group_name + "_length"], ascending=False)
+        # sorted_by_length = df[top100_attributes].groupby(by=[attribute_group])[top100_attributes].count()
+        # sorted_by_length = sorted_by_length.rename(columns={attribute_group: "count"})
+        # sorted_by_length = sorted_by_length.sort_values(by=[attribute_group_name + "_length"], ascending=False)
+
+        sorted_by_length = df[top100_attributes].sort_values(by=[attribute_group_name + "_length"], ascending=False)
+
         top100_length = sorted_by_length.head(n=100).rename(columns={attribute_group_name + "_length": "length"})
         bottom100_length = sorted_by_length.tail(n=100).rename(columns={attribute_group_name + "_length": "length"})
 
