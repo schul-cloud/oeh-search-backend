@@ -43,24 +43,15 @@ def download_profile_email():
     data_dir, dataset_files = move_datasets_to_data_dir()
 
     start_profiling = time.time()
-    # for dataset, json_file_path in dataset_files.items():
-    #     try:
-    #         execute_profiling(["--dataset", dataset, "--json_file_path", json_file_path])
-    #     except:
-    #         pass
+    for dataset, json_file_path in dataset_files.items():
+        try:
+            execute_profiling(["--dataset", dataset, "--json_file_path", json_file_path])
+        except:
+            pass
     profiling_duration = time.time() - start_profiling
 
     aggregated_statistics = glob.glob(data_dir + "*_exploratory_queries_" + datetime.today().strftime('%Y_%m_%d') + ".xlsx")
     # Step 3: send e-mail to specified people.
-    # send_mail(
-    #     "ioannis.koumarelas@gmail.com",
-    #     ["ioannis.koumarelas@hpi.de"],
-    #     "Test aggregated statistics",
-    #     "Hi, please have a look at the latest aggregated statistics",
-    #     files=aggregated_statistics,
-    #     server="localhost:1025"
-    # )
-
     send_mail_with_excel(
         "ioannis.koumarelas@hpi.de",
         "Aggregated statistics for Edu-Sharing content - " + datetime.today().strftime('%Y_%m_%d'),
@@ -116,7 +107,7 @@ def move_datasets_to_data_dir():
 def send_mail_with_excel(recipient_email, subject, content, excel_files):
     msg = EmailMessage()
     msg['Subject'] = subject
-    # msg['From'] = SENDER_EMAIL
+    msg['From'] = "ContentMetrics"
     msg['To'] = recipient_email
     msg.set_content(content)
 
@@ -126,9 +117,7 @@ def send_mail_with_excel(recipient_email, subject, content, excel_files):
 
         msg.add_attachment(file_data, maintype="application", subtype="xlsx", filename=os.path.basename(excel_file))
 
-    # with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-    with smtplib.SMTP_SSL("localhost", 25) as smtp:
-        # smtp.login(SENDER_EMAIL, APP_PASSWORD)
+    with smtplib.SMTP("localhost", 25) as smtp:
         smtp.send_message(msg)
 
 if __name__ == '__main__':

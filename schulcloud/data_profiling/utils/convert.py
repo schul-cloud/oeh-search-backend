@@ -10,7 +10,7 @@ import csv_to_sqlite
 import ijson
 import pandas as pd
 # from https://stackoverflow.com/a/28246154/473201
-from orderedset._orderedset import OrderedSet
+from ordered_set import OrderedSet
 from tqdm import tqdm
 
 
