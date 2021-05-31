@@ -21,10 +21,8 @@ def profile_dataset(workspace, dataset, dataset_csv, dataset_json, dataset_sqlit
     out potential issues.
     """
     # Step 1: Convert data (skipping thumbnails due to large size).
-    if not os.path.exists(dataset_csv):
-        convert_json_to_csv(dataset_json, dataset_csv)
-    if not os.path.exists(dataset_sqlite):
-        convert_csv_to_sqlite(dataset_csv, dataset_sqlite)
+    convert_json_to_csv(dataset_json, dataset_csv)
+    convert_csv_to_sqlite(dataset_csv, dataset_sqlite)
     df = pd.read_csv(dataset_csv)
     df = df.fillna('')
 
