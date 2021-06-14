@@ -31,7 +31,7 @@ def parse_arguments_profiling(argv):
 
     args = parser.parse_args(argv)
 
-    emails = args.email
+    emails = args.emails if type(args.emails) is not list else args.emails[0]
 
     arguments = {
         "emails": emails
@@ -122,7 +122,7 @@ def send_mail_with_excel(recipient_email, subject, content, excel_files):
     msg = EmailMessage()
     msg['Subject'] = subject
     msg['From'] = "ContentMetrics"
-    msg['To'] = recipient_email
+    msg['To'] = recipient_email.strip().split("; ")
     msg.set_content(content)
 
     for excel_file in excel_files:
