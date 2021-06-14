@@ -10,8 +10,6 @@ from schulcloud.data_profiling.data_profiling import profile_dataset
 
 def parse_arguments_profiling(argv):
     workspace = "/data/Projects/schulcloud/code/oeh-search-etl/schulcloud/data_profiling/data/"
-    # dataset = "oeh";json_file_path = workspace + "output_oeh_spider.json"
-    # dataset = "merlin";json_file_path = workspace + "output_merlin_spider.json"
     dataset = "mediothek"
     json_file_path = workspace + "output_mediothek_pixiothek_spider.json"
 

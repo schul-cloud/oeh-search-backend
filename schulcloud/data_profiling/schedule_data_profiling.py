@@ -1,17 +1,13 @@
+import argparse
 import glob
 import os
 import shutil
+import sys
 import time
 from datetime import datetime
 
 import smtplib
 from email.message import EmailMessage
-from os.path import basename
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import formatdate
-from email.utils import COMMASPACE
 
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
@@ -27,16 +23,34 @@ from schulcloud.data_profiling.execute_data_profiling import execute_profiling
 The script should be executed from within the data_profiling directory
 """
 
-def download_profile_email():
+def parse_arguments_profiling(argv):
+    parser = argparse.ArgumentParser(description='Profile your dataset')
+
+    parser.add_argument('--emails', metavar='E', type=str, nargs='+',
+                        help='the recipients people\'s e-mails.', default="")
+
+    args = parser.parse_args(argv)
+
+    emails = args.email
+
+    arguments = {
+        "emails": emails
+    }
+
+    return arguments
+
+def download_profile_email(argv=None):
+    emails = parse_arguments_profiling(argv)["emails"]
+
     # Step 1: Download dataset locally. This requires some changes to the .env file:
     set_env_vars()
 
     start_crawling = time.time()
-    # process = CrawlerProcess(get_project_settings())
-    # process.crawl(MerlinSpider)
-    # process.crawl(MediothekPixiothekSpider)
-    # process.crawl(OEHSpider)
-    # process.start()
+    process = CrawlerProcess(get_project_settings())
+    process.crawl(MerlinSpider)
+    process.crawl(MediothekPixiothekSpider)
+    process.crawl(OEHSpider)
+    process.start()
     crawling_duration = time.time() - start_crawling
 
     # Step 2: Profile datasets
@@ -53,7 +67,7 @@ def download_profile_email():
     aggregated_statistics = glob.glob(data_dir + "*_exploratory_queries_" + datetime.today().strftime('%Y_%m_%d') + ".xlsx")
     # Step 3: send e-mail to specified people.
     send_mail_with_excel(
-        "ioannis.koumarelas@hpi.de",
+        emails,
         "Aggregated statistics for Edu-Sharing content - " + datetime.today().strftime('%Y_%m_%d'),
         "Please find attached the latest aggregated statistics for the Edu-Sharing content.\n\n" + \
             "Crawling duration: " + str(crawling_duration) + " seconds.\n" + \
